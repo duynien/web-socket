@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+    <title>Chat Tupi | Spring Boot + WebSocket</title>
+    <link rel="stylesheet" href="/css/main.css"/>
+</head>
+
+<body background="../static/maxresdefault.jpg"
+      style="background-position: center; background-repeat: no-repeat; background-size: cover;">
+<noscript>
+    <h2>Opa! Parece que este browser não suporta JavaScript</h2>
+</noscript>
+
+<div id="username-page">
+    <div class="username-page-container">
+        <h1 class="title">Enter name</h1>
+        <form id="usernameForm" name="usernameForm">
+            <div class="form-group">
+                <input type="text" id="name" placeholder="Nome" autocomplete="off" class="form-control"/>
+            </div>
+            <div class="form-group">
+                <button type="submit" class="accent username-submit">Comece a conversar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="chat-page" class="hidden">
+    <div class="chat-container">
+        <div class="chat-header">
+            <h2>ChatBox Tupi</h2>
+        </div>
+        <div class="connecting">Connect to chat...</div>
+        <ul id="messageArea">
+        </ul>
+        <form id="messageForm" name="messageForm" nameForm="messageForm">
+            <div class="form-group">
+                <div class="input-group clearfix">
+                    <input type="text" id="message" placeholder="Digite uma mensagem..." autocomplete="off"
+                           class="form-control"/>
+                    <button type="submit" class="primary">Enviar</button>
+                </div>
+            </div>
+        </form>
+        <a href="#" id="logout">Thoát</a>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+<script>
+    var usernamePage = document.querySelector("#username-page");
+    var chatPage = document.querySelector("#chat-page");
+    var usernameForm = document.querySelector("#usernameForm");
+    var messageForm = document.querySelector("#messageForm");
+    var messageInput = document.querySelector("#message");
+    var messageArea = document.querySelector("#messageArea");
+    var connectingElement = document.querySelector(".connecting");
+    var logOut = document.querySelector('#logout');
+    var stompClient = null;
+    var username = null;
+
+    var colors = [
+        "#2196F3",
+        "#32c787",
+        "#00BCD4",
+        "#ff5652",
+        "#ffc107",
+        "#ff85af",
+        "#FF9800",
+        "#39bbb0",
+    ];
+
+    function connect(event) {
+        username = document.querySelector("#name").value.trim();
+        if (username) {
+            usernamePage.classList.add("hidden");
+            chatPage.classList.remove("hidden");
+
+            var socket = new SockJS("/websocket");
+            stompClient = Stomp.over(socket);
+
+            stompClient.connect({}, onConnected, onError);
+        }
+        event.preventDefault();
+    }
+
+    function onConnected() {
+        stompClient.send(
+            "/app/chat.register",
+            {},
+            JSON.stringify({sender: username, type: "JOIN"})
+        );
+        connectingElement.classList.add("hidden");
+    }
+
+    function onError(error) {
+        connectingElement.textContent =
+            "Không thể kết nối với WebSocket! Vui lòng làm mới trang và thử lại hoặc liên hệ với quản trị viên của bạn.";
+        connectingElement.style.color = "red";
+    }
+    function logout(event) {
+        if (stompClient) {
+            var chatMessage = {
+                sender: username,
+                content: "đã thoát ứng dụng",
+                type: "LEAVE",
+            };
+            stompClient.send("/app/chat.send", {}, JSON.stringify(chatMessage));
+            messageInput.value = "";
+        }
+        event.preventDefault();
+    }
+    function send(event) {
+        var messageContent = messageInput.value.trim();
+        if (messageContent && stompClient) {
+            var chatMessage = {
+                sender: username,
+                content: messageInput.value + "message thay đổi",
+                type: "CHAT",
+            };
+            stompClient.send("/app/chat.send", {}, JSON.stringify(chatMessage));
+            messageInput.value = "";
+        }
+        event.preventDefault();
+    }
+
+    usernameForm.addEventListener("submit", connect, true);
+    messageForm.addEventListener("submit", send, true);
+    logOut.addEventListener("click",logout,true);
+</script>
+</body>
+
+</html>

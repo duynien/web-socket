@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+    <title>Chat Tupi | Spring Boot + WebSocket</title>
+    <link rel="stylesheet" href="/css/main.css" />
+</head>
+
+<body background="../static/maxresdefault.jpg"
+    style="background-position: center; background-repeat: no-repeat; background-size: cover;">
+    <noscript>
+        <h2>Opa! Parece que este browser não suporta JavaScript</h2>
+    </noscript>
+    <div id="username-page">
+        <div class="username-page-container">
+            <h1 class="title">Enter name</h1>
+            <form id="usernameForm" name="usernameForm">
+                <div class="form-group">
+                    <input type="text" id="name" placeholder="Nome" autocomplete="off" class="form-control" />
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="accent username-submit">Comece a conversar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="chat-page" class="hidden">
+        <div class="chat-container">
+            <div class="chat-header">
+                <h2>ChatBox Tupi</h2>
+            </div>
+            <div class="connecting">Connect to chat...</div>
+            <ul id="messageArea">
+            </ul>
+            <form id="messageForm" name="messageForm" nameForm="messageForm">
+                <div class="form-group">
+                    <div class="input-group clearfix">
+                        <input type="text" id="message" placeholder="Digite uma mensagem..." autocomplete="off"
+                            class="form-control" />
+                        <button type="submit" class="primary">Enviar</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script>
+        var usernamePage = document.querySelector("#username-page");
+        var stompClient = null;
+        var username = null;
+
+        var colors = [
+            "#2196F3",
+            "#32c787",
+            "#00BCD4",
+            "#ff5652",
+            "#ffc107",
+            "#ff85af",
+            "#FF9800",
+            "#39bbb0",
+        ];
+
+        function connect(event) {
+            username = document.querySelector("#name").value.trim();
+
+            if (username) {
+                document.write(username);
+                usernamePage.classList.add("hidden");
+
+                var socket = new SockJS("/websocket");
+                stompClient = Stomp.over(socket);
+
+                stompClient.connect({}, onConnected, onError);
+            }
+            event.preventDefault();
+        }
+        function onConnected() {
+            // Subscribe to the Public Topic
+            stompClient.subscribe("/topic/public", onMessageReceived);
+            // Tell your username to the server
+            stompClient.send(
+                "/app/chat.register",
+                {},
+                JSON.stringify({ sender: username, type: "JOIN" })
+            );
+        }
+        function onError(error) {
+            connectingElement.textContent =
+                "Không thể kết nối với WebSocket!";
+            connectingElement.style.color = "red";
+        }
+        function onMessageReceived(payload) {
+            var message = JSON.parse(payload.body);
+            if (message.type === "JOIN") {
+                message.content = message.sender + " joined!";
+                var usernameText = message.content;
+                document.write(usernameText + '<br>');
+            } else if (message.type === "LEAVE") {
+                message.content = message.sender + " left!";
+                var usernameText = message.content;
+                document.write(usernameText + '<br>');
+            } else {
+                var username = message.sender;
+                var usernameText = message.content;
+                document.write(username + " đã gửi " + usernameText + '<br>');
+            }
+        }
+        usernameForm.addEventListener("submit", connect, true);
+    </script>
+</body>
+</html>
